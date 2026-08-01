@@ -36,6 +36,7 @@ jobs:
         env:
           LINKS_TEXT: ${{ github.event.inputs.links }}
           CAPTION: ${{ github.event.inputs.caption }}
-          RUBIKA_AUTH: ${{ secrets.RUBIKA_AUTH }}
+          RUBIKA_SESSION_BASE64: ${{ secrets.RUBIKA_SESSION_BASE64 }}
+          TARGET_GUID: ${{ secrets.TARGET_GUID }}
         run: |
           python upload_all.py
