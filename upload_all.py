@@ -76,7 +76,8 @@ def main():
     total_count = len(urls)
     print(f"📋 تعداد کل لینک‌ها: {total_count} عدد\n")
 
-    with Client(auth=RUBIKA_AUTH) as client:
+    # اصلاح شد: اضافه شدن name="github_session"
+    with Client(name="github_session", auth=RUBIKA_AUTH) as client:
         for idx, url in enumerate(urls, 1):
             print("="*50)
             print(f"🔄 لینک [{idx} از {total_count}]: {url}")
@@ -104,7 +105,7 @@ def main():
                 print("⏭️ رفتن به لینک بعدی...")
                 
             finally:
-                # ۳. پاکسازی فوری دیسک قبل از رفتن به لینک بعد
+                # ۳. پاکسازی دیسک
                 cleanup_temp_file()
 
     print("🏁 تمام شد!")
