@@ -15,6 +15,7 @@ TARGET_GUID_ENV = os.getenv("TARGET_GUID", "")
 RUBIKA_SESSION_BASE64 = os.getenv("RUBIKA_SESSION_BASE64")
 
 SESSION_FILE_PATH = Path("github_session.rp")
+TEMP_FILE_PATH = Path("current_download.tmp")
 
 def setup_session():
     """بازسازی فایل سشن کامل روبیکا (شامل کلید RSA)"""
@@ -51,7 +52,6 @@ def get_filename_from_url(url: str, response: requests.Response) -> str:
         parsed_path = urlparse(url).path
         filename = Path(unquote(parsed_path)).name
     
-    # ایمن‌سازی نام فایل
     filename = re.sub(r'[<>:"/\\|?*\x00-\x1F]', '_', filename).strip()
     if not filename or '.' not in filename:
         filename = f"file_{int(time.time())}.bin"
@@ -90,12 +90,21 @@ def upload_to_rubika(client: Client, file_path: Path, caption: str, target: str)
     print(f"📤 [2/3] در حال آپلود فایل [{file_path.name}] به روبیکا (مقصد: {target})...")
     start_time = time.time()
     
-    # متد طبق مستندات رسمی rubpy: client.send_document(object_guid, document, caption)
-    client.send_document(
-        target,
-        str(file_path),
-        caption=caption
-    )
+    # ابتدا تلاش با send_document
+    try:
+        client.send_document(
+            target,
+            str(file_path),
+            caption=caption
+        )
+    except Exception as e:
+        print(f"⚠️ روش send_document خطای {e} داد، در حال تلاش با روش send_message (file_inline)...")
+        client.send_message(
+            target,
+            text=caption,
+            file_inline=str(file_path)
+        )
+
     print(f"🚀 آپلود با موفقیت در {time.time() - start_time:.1f} ثانیه انجام شد.")
 
 def main():
@@ -109,7 +118,6 @@ def main():
     total_count = len(urls)
     print(f"📋 تعداد کل لینک‌ها: {total_count} عدد\n")
 
-    # اگر TARGET_GUID تنظیم نشده باشد، مقصد به طور خودکار "me" (پیام‌های ذخیره‌شده) خواهد بود
     target = TARGET_GUID_ENV.strip() if TARGET_GUID_ENV and TARGET_GUID_ENV.strip() else "me"
     print(f"🎯 مقصد نهایی ارسال: {target}")
 
@@ -142,7 +150,7 @@ def main():
                 print("⏭️ رفتن به لینک بعدی...")
                 
             finally:
-                # ۳. پاکسازی دیسک
+                # ۳. پاکسازی فایل
                 if file_path and file_path.exists():
                     file_path.unlink()
                     print(f"🧹 [3/3] فایل [{file_path.name}] از دیسک پاک شد.\n")
