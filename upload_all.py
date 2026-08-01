@@ -9,7 +9,7 @@ from rubpy import Client
 # دریافت ورودی‌ها
 LINKS_TEXT = os.getenv("LINKS_TEXT", "")
 CAPTION = os.getenv("CAPTION", "")
-TARGET_GUID = os.getenv("TARGET_GUID", "me")
+TARGET_GUID = os.getenv("TARGET_GUID") or "me" # اگر خالی بود به پیام‌های ذخیره‌شده می‌فرستد
 RUBIKA_SESSION_BASE64 = os.getenv("RUBIKA_SESSION_BASE64")
 
 TEMP_FILE_PATH = Path("current_download.tmp")
@@ -68,7 +68,8 @@ def upload_to_rubika(client: Client, file_path: Path, caption: str):
     print("📤 [2/3] در حال آپلود تکه‌تکه‌ای به روبیکا...")
     start_time = time.time()
     
-    client.send_file(
+    # اصلاح شد: استفاده از send_document به جای send_file
+    client.send_document(
         target=TARGET_GUID,
         file=str(file_path),
         caption=caption
