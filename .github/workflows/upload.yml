@@ -1,0 +1,41 @@
+name: 🚀 Bulk Direct Links to Rubika
+
+on:
+  workflow_dispatch:
+    inputs:
+      links:
+        description: 'لینک‌ها را وارد کنید (هر لینک در یک خط)'
+        required: true
+        type: string
+      caption:
+        description: 'کپشن عمومی برای فایل‌ها (اختیاری)'
+        required: false
+        default: ''
+        type: string
+
+jobs:
+  bulk_upload:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests rubpy
+
+      - name: Run Multi-Link Uploader
+        env:
+          LINKS_TEXT: ${{ github.event.inputs.links }}
+          CAPTION: ${{ github.event.inputs.caption }}
+          RUBIKA_AUTH: ${{ secrets.RUBIKA_AUTH }}
+        run: |
+          python upload_all.py
