@@ -22,6 +22,10 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v3
 
+      # دور زدن مسدودی آی‌پی دیتاسنترهای آمریکا توسط فایروال روبیکا
+      - name: Setup Cloudflare WARP
+        uses: fscarmen/warp-on-actions@v1
+
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
