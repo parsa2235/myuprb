@@ -9,7 +9,7 @@ from rubpy import Client
 # دریافت ورودی‌ها
 LINKS_TEXT = os.getenv("LINKS_TEXT", "")
 CAPTION = os.getenv("CAPTION", "")
-TARGET_GUID = os.getenv("TARGET_GUID") or "me" # اگر خالی بود به پیام‌های ذخیره‌شده می‌فرستد
+TARGET_GUID = os.getenv("TARGET_GUID") or "me"
 RUBIKA_SESSION_BASE64 = os.getenv("RUBIKA_SESSION_BASE64")
 
 TEMP_FILE_PATH = Path("current_download.tmp")
@@ -68,10 +68,10 @@ def upload_to_rubika(client: Client, file_path: Path, caption: str):
     print("📤 [2/3] در حال آپلود تکه‌تکه‌ای به روبیکا...")
     start_time = time.time()
     
-    # اصلاح شد: استفاده از send_document به جای send_file
+    # اصلاح شد: ارسال پارامترهای ترتیبی (object_guid و document) طبق ساختار rubpy
     client.send_document(
-        target=TARGET_GUID,
-        file=str(file_path),
+        TARGET_GUID,
+        str(file_path),
         caption=caption
     )
     print(f"🚀 آپلود با موفقیت در {time.time() - start_time:.1f} ثانیه انجام شد.")
@@ -82,7 +82,6 @@ def cleanup_temp_file():
         print("🧹 [3/3] فایل از دیسک پاک شد. آماده برای فایل بعدی.\n")
 
 def main():
-    # ۱. بازسازی فایل سشن
     setup_session()
         
     urls = extract_urls(LINKS_TEXT)
@@ -93,7 +92,6 @@ def main():
     total_count = len(urls)
     print(f"📋 تعداد کل لینک‌ها: {total_count} عدد\n")
 
-    # ۲. اتصال به روبیکا
     with Client(name="github_session") as client:
         for idx, url in enumerate(urls, 1):
             print("="*50)
