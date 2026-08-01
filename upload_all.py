@@ -1,6 +1,7 @@
 import os
 import sys
 import time
+import base64
 import requests
 from pathlib import Path
 from rubpy import Client
@@ -8,10 +9,26 @@ from rubpy import Client
 # دریافت ورودی‌ها
 LINKS_TEXT = os.getenv("LINKS_TEXT", "")
 CAPTION = os.getenv("CAPTION", "")
-RUBIKA_AUTH = os.getenv("RUBIKA_AUTH")
 TARGET_GUID = os.getenv("TARGET_GUID", "me")
+RUBIKA_SESSION_BASE64 = os.getenv("RUBIKA_SESSION_BASE64")
 
 TEMP_FILE_PATH = Path("current_download.tmp")
+SESSION_FILE_PATH = Path("github_session.rp")
+
+def setup_session():
+    """بازسازی فایل سشن کامل روبیکا (شامل کلید RSA)"""
+    if not RUBIKA_SESSION_BASE64:
+        print("❌ خطای امنیتی: کلید RUBIKA_SESSION_BASE64 در Secrets گیتهاب تنظیم نشده است.")
+        sys.exit(1)
+    
+    try:
+        session_bytes = base64.b64decode(RUBIKA_SESSION_BASE64.strip())
+        with open(SESSION_FILE_PATH, "wb") as f:
+            f.write(session_bytes)
+        print("✅ فایل سشن روبیکا (شامل کلیدهای RSA) با موفقیت بازسازی شد.")
+    except Exception as e:
+        print(f"❌ خطای بازسازی سشن: {e}")
+        sys.exit(1)
 
 def extract_urls(text: str) -> list[str]:
     if not text:
@@ -24,7 +41,7 @@ def extract_urls(text: str) -> list[str]:
     return urls
 
 def download_file(url: str, save_path: Path):
-    print(f"📥 [1/3] در حال دانلود فایل از لینک...")
+    print(f"📥 [1/3] در حال دانلود فایل...")
     start_time = time.time()
     
     with requests.get(url, stream=True, timeout=60) as r:
@@ -64,9 +81,8 @@ def cleanup_temp_file():
         print("🧹 [3/3] فایل از دیسک پاک شد. آماده برای فایل بعدی.\n")
 
 def main():
-    if not RUBIKA_AUTH:
-        print("❌ خطای کلید RUBIKA_AUTH ست نشده است.")
-        sys.exit(1)
+    # ۱. بازسازی فایل سشن
+    setup_session()
         
     urls = extract_urls(LINKS_TEXT)
     if not urls:
@@ -76,19 +92,17 @@ def main():
     total_count = len(urls)
     print(f"📋 تعداد کل لینک‌ها: {total_count} عدد\n")
 
-    # اصلاح شد: اضافه شدن name="github_session"
-    with Client(name="github_session", auth=RUBIKA_AUTH) as client:
+    # ۲. اتصال به روبیکا
+    with Client(name="github_session") as client:
         for idx, url in enumerate(urls, 1):
             print("="*50)
             print(f"🔄 لینک [{idx} از {total_count}]: {url}")
             print("="*50)
 
             try:
-                # ۱. دانلود فایل جاری
                 download_file(url, TEMP_FILE_PATH)
                 file_caption = CAPTION if CAPTION else f"آپلود شده از لینک:\n{url}"
 
-                # ۲. آپلود فایل جاری
                 max_retries = 3
                 for attempt in range(1, max_retries + 1):
                     try:
@@ -105,7 +119,6 @@ def main():
                 print("⏭️ رفتن به لینک بعدی...")
                 
             finally:
-                # ۳. پاکسازی دیسک
                 cleanup_temp_file()
 
     print("🏁 تمام شد!")
