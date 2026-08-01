@@ -11,7 +11,7 @@ from rubpy import Client
 # دریافت ورودی‌ها
 LINKS_TEXT = os.getenv("LINKS_TEXT", "")
 CAPTION = os.getenv("CAPTION", "")
-TARGET_GUID_ENV = os.getenv("TARGET_GUID")
+TARGET_GUID_ENV = os.getenv("TARGET_GUID", "")
 RUBIKA_SESSION_BASE64 = os.getenv("RUBIKA_SESSION_BASE64")
 
 SESSION_FILE_PATH = Path("github_session.rp")
@@ -86,25 +86,14 @@ def download_file(url: str) -> Path:
     print(f"✅ دانلود فایل [{filename}] در {time.time() - start_time:.1f} ثانیه کامل شد.")
     return save_path
 
-def resolve_target_guid(client: Client) -> str:
-    """استخراج GUID واقعی اکانت برای جلوگیری از خطای سرور"""
-    target = (TARGET_GUID_ENV or "").strip()
-    if not target or target.lower() == "me":
-        me_info = client.get_me()
-        user_data = me_info.get("user", {}) if isinstance(me_info, dict) else {}
-        target = user_data.get("user_guid") or me_info.get("user_guid") or "me"
-        print(f"👤 مقصد ارسال: پیام‌های ذخیره‌شده (GUID: {target})")
-    else:
-        print(f"🎯 مقصد ارسال: {target}")
-    return target
-
-def upload_to_rubika(client: Client, file_path: Path, caption: str, target_guid: str):
-    print(f"📤 [2/3] در حال آپلود فایل [{file_path.name}] به روبیکا...")
+def upload_to_rubika(client: Client, file_path: Path, caption: str, target: str):
+    print(f"📤 [2/3] در حال آپلود فایل [{file_path.name}] به روبیکا (مقصد: {target})...")
     start_time = time.time()
     
+    # متد طبق مستندات رسمی rubpy: client.send_document(object_guid, document, caption)
     client.send_document(
-        target_guid,
-        file_path,
+        target,
+        str(file_path),
         caption=caption
     )
     print(f"🚀 آپلود با موفقیت در {time.time() - start_time:.1f} ثانیه انجام شد.")
@@ -120,9 +109,11 @@ def main():
     total_count = len(urls)
     print(f"📋 تعداد کل لینک‌ها: {total_count} عدد\n")
 
-    with Client(name="github_session") as client:
-        target_guid = resolve_target_guid(client)
+    # اگر TARGET_GUID تنظیم نشده باشد، مقصد به طور خودکار "me" (پیام‌های ذخیره‌شده) خواهد بود
+    target = TARGET_GUID_ENV.strip() if TARGET_GUID_ENV and TARGET_GUID_ENV.strip() else "me"
+    print(f"🎯 مقصد نهایی ارسال: {target}")
 
+    with Client(name="github_session") as client:
         for idx, url in enumerate(urls, 1):
             print("="*50)
             print(f"🔄 لینک [{idx} از {total_count}]: {url}")
@@ -138,7 +129,7 @@ def main():
                 max_retries = 3
                 for attempt in range(1, max_retries + 1):
                     try:
-                        upload_to_rubika(client, file_path, file_caption, target_guid)
+                        upload_to_rubika(client, file_path, file_caption, target)
                         break
                     except Exception as upload_err:
                         print(f"⚠️ تلاش {attempt} ناکام بود: {upload_err}")
@@ -151,7 +142,7 @@ def main():
                 print("⏭️ رفتن به لینک بعدی...")
                 
             finally:
-                # ۳. پاکسازی فایل
+                # ۳. پاکسازی دیسک
                 if file_path and file_path.exists():
                     file_path.unlink()
                     print(f"🧹 [3/3] فایل [{file_path.name}] از دیسک پاک شد.\n")
