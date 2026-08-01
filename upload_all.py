@@ -86,11 +86,35 @@ def download_file(url: str) -> Path:
     print(f"✅ دانلود فایل [{filename}] در {time.time() - start_time:.1f} ثانیه کامل شد.")
     return save_path
 
+def get_real_target_guid(client: Client) -> str:
+    """دریافت GUID واقعی کاربر یا کانال (روبیکا رشته "me" را در سرور قبول نمی‌کند)"""
+    target = TARGET_GUID_ENV.strip() if TARGET_GUID_ENV and TARGET_GUID_ENV.strip() else ""
+    
+    if not target or target.lower() == "me":
+        print("🔍 در حال استخراج GUID واقعی حساب کاربری شما...")
+        try:
+            me_data = client.get_me()
+            if isinstance(me_data, dict):
+                user_info = me_data.get("user")
+                if isinstance(user_info, dict) and user_info.get("user_guid"):
+                    target = user_info["user_guid"]
+                elif me_data.get("user_guid"):
+                    target = me_data["user_guid"]
+        except Exception as err:
+            print(f"⚠️ خطای دریافت get_me: {err}")
+            
+    if not target or target.lower() == "me":
+        target = "me"
+        print("⚠️ GUID واقعی یافت نشد، استفاده از me")
+    else:
+        print(f"🎯 شناسه نهایی مقصد (GUID): {target}")
+
+    return target
+
 def upload_to_rubika(client: Client, file_path: Path, caption: str, target: str):
     print(f"📤 [2/3] در حال آپلود فایل [{file_path.name}] به روبیکا (مقصد: {target})...")
     start_time = time.time()
     
-    # ابتدا تلاش با send_document
     try:
         client.send_document(
             target,
@@ -118,10 +142,10 @@ def main():
     total_count = len(urls)
     print(f"📋 تعداد کل لینک‌ها: {total_count} عدد\n")
 
-    target = TARGET_GUID_ENV.strip() if TARGET_GUID_ENV and TARGET_GUID_ENV.strip() else "me"
-    print(f"🎯 مقصد نهایی ارسال: {target}")
-
     with Client(name="github_session") as client:
+        # استخراج GUID واقعی اکانت
+        real_target = get_real_target_guid(client)
+
         for idx, url in enumerate(urls, 1):
             print("="*50)
             print(f"🔄 لینک [{idx} از {total_count}]: {url}")
@@ -137,7 +161,7 @@ def main():
                 max_retries = 3
                 for attempt in range(1, max_retries + 1):
                     try:
-                        upload_to_rubika(client, file_path, file_caption, target)
+                        upload_to_rubika(client, file_path, file_caption, real_target)
                         break
                     except Exception as upload_err:
                         print(f"⚠️ تلاش {attempt} ناکام بود: {upload_err}")
